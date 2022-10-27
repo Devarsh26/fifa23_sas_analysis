@@ -1,0 +1,277 @@
+libname project "/home/u61868407/Server Data";
+
+/*********************************************/
+
+proc import datafile="/home/u61868407/Server Data/Fifa 23 Players Data.csv" 
+	out=project.Data 
+	dbms=csv replace;
+	SHEET="Fifa 23 Players Data";
+run;
+
+proc import datafile="/home/u61868407/Server Data/Player_Details.csv" 
+	out=project.Datata 
+	dbms=csv replace;
+	SHEET="Player Details";
+run;
+
+proc import datafile="/home/u61868407/Server Data/Player_Statistics.csv" 
+	out=project.Datatata 
+	dbms=csv replace;
+	SHEET="Player Statistics";
+run;
+
+/*********************************************/
+
+proc sort DATA = project.datata;
+ by FullName;
+run;
+
+proc sort DATA = project.datatata;
+ by FullName;
+run;
+
+proc print data = project.datata (OBS=5);
+run;
+
+proc print data = project.datatata (OBS=5);
+run;
+
+data work.results;
+	Merge project.datata project.datatata;
+	By FullName;
+Run;
+
+title1 "Merged Dataset";
+footnote1 "***********";
+proc print data = work.results(OBS=10);
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+/*title1 "Dataset";
+footnote1 "***********";
+proc print data = project.Data (OBS=5);
+run;
+title1;
+footnote1;*/
+
+/*********************************************/
+
+data work.result;
+	set project.Data;
+	if Potential>=90 then class=1;
+	else if 85<= Potential <=89 then class=2;
+	else if 80<=Potential<=84 then class=3;
+	else class=4;
+run;
+
+proc format;
+   value classtype
+      1='World Class'
+      2='Professional'
+      3='Semi-pro'
+      4='Amateur';
+run;
+
+title1 "Number of Players by Class(Potential)";
+footnote1 "***********";
+proc freq data=work.result;
+    table class / nocum;
+    format class classtype.;
+    label class = 'Class';
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+title1 "Number of Players by National Team";
+footnote1 "***********";
+proc freq data=work.result order=freq;
+    table national_team_name / nocum maxlevels=20;
+run;
+title1;
+footnote1;
+
+title1 "Number of Players by Club Name";
+footnote1 "***********";
+proc freq data=work.result order=freq;
+    table clubname / nocum maxlevels=20;
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+proc sort data=project.Data
+	out=work.positionprice;
+	By descending value_euro;
+	
+data work.expensiveposition;	
+	set work.positionprice;
+	where best_position="ST";
+	keep FullName Value_euro;
+run;
+
+title1 "Most Expensive Player by Position (Ex. ST)";
+footnote1 "***********";
+proc print data=work.expensiveposition (obs=10);
+	format value_euro euro15.2;
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+title1 "Average Value by Position";
+footnote1 "***********";
+proc means data=project.data mean;
+	var value_euro;
+	class best_position;
+run;
+title1;
+footnote1; 
+
+/*********************************************/
+
+title1 "Positional average value for National Teams";
+footnote1 "***********";
+proc means data=project.data mean;
+	var Overall;
+	class national_team_name best_position;
+run;
+title1;
+footnote1; 
+
+/*********************************************/
+
+title1 "Histogram for Age Distribution for England Team";
+footnote1 "***********";
+proc univariate data=project.Data noprint;
+	histogram Age/kernel;
+	where Nationality = "England";
+run;
+title1;
+footnote1; 
+
+/*********************************************/
+
+title1 "Players in club by nationality";
+footnote1 "***********"; 
+proc sgplot data = project.data;
+	title height=8pt "Bar-Plots for Nationality Where club name is Chelsea";
+	vbar nationality / filattrs = (color=CX3870c4 transparency = 0.5);
+	where clubname = "Chelsea";
+	yaxis grid;
+run;
+title;
+title1;
+footnote1; 
+
+/*********************************************/
+
+data work.weakfoot;
+	set project.Data;
+	if Weak_Foot_Rating=3 then WeakFoot="Adequate";
+	else if Weak_Foot_Rating>=4 and Weak_Foot_Rating<=5 then WeakFoot="Strong";
+	else if Weak_Foot_Rating<=2 then WeakFoot="Weak";
+	else class="Not Defined";
+run;
+
+title1 "Weak Foot Strength Count";
+footnote1 "***********";
+proc freq data=work.weakfoot;
+    table WeakFoot / nocum;
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+title1 "Summary of Wages";
+footnote1 "***********";
+proc summary data=project.data print;
+    var wage_euro;
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+proc freq data= work.result;
+	where class in(1,2) and ClubName;
+	tables ClubName*class / nocol norow nopercent;
+	format class classtype.;
+run;
+
+/*********************************************/
+
+title1 "Weak Foot and Skill Ratings above 4";
+footnote1 "***********";
+data work.foot;
+	set project.Data;
+	where Weak_Foot_Rating>=4 and Skill_Moves>=4;
+	where same clubname = "FC Barcelona" or clubname="Paris Saint-Germain" or clubname="Manchester City";
+	format Value_Euro euro15.2;
+	keep Weak_Foot_Rating Skill_Moves FullName Overall Value_Euro ClubName;
+run;
+
+proc sort data= work.foot;
+	BY ClubName descending value_euro;
+run;
+
+proc print data=work.foot noobs;
+	By Clubname;
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+title1 "Top 10 fastest players";
+footnote1 "***********";
+data work.output;
+	set project.data;
+	Speed= (pace_total + acceleration + sprint_speed)/3;
+	If speed >90;
+	Keep speed FullName;
+run;
+
+Proc sort data=work.output;
+	By descending speed;
+run;
+
+Proc print data=work.output (obs=10);
+run;
+title1;
+footnote1;
+
+/*********************************************/
+
+title2 "Total wages spent by club";
+footnote2 "***********";
+Proc sort data=project.data
+	Out=work.temp;
+	By ClubName;
+Run;
+
+Data work.wagetotal;
+	Set work.temp;
+	By ClubName;
+	if first.ClubName then total_spent=0;
+	total_spent + Wage_Euro;
+	If last.ClubName;
+	Keep ClubName total_spent;
+Run;
+
+proc sort data=work.wagetotal;
+	by descending total_spent;
+run;
+
+Proc print data=work.wagetotal (obs=10);
+	Format total_spent euro15.2;
+Run;
+title2;
+footnote2;
